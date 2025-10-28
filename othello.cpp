@@ -44,18 +44,18 @@ int main()
 		
 		cout << "Programmed by: Gavin Dominique" << endl << endl;
 		
-		int in;
+		char in;
 		cout << "[1] to begin a game." << endl;
 		cout << "[2] to view a prpgram description." << endl;
 		cout << "[0] to quit the program. " << endl;
 		cout << endl << "> ";
 		cin >> in;
-		if ((in == 1) || (in == 2))
+		if ((in == '1') || (in == '2'))
 		{
 			cout << "\033[2J\033[1;1H";		// clears the screen
 			play();							// begins the game
 		}
-		else
+		else if (in == '0')
 		{
 			running = false;
 		}
