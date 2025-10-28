@@ -13,14 +13,14 @@ array<int, 2> parseInput(string move);
 string parseOutput(int r, int c);
 bool checkWin();
 int getPoints(char turn);
-
+void info();
 void play();
 
 // global variables
 const int SIZE = 8;
 char board[SIZE][SIZE];
 
-const char EMPTY = '*';
+const char EMPTY = '.';
 const char BLACK = 'B';
 const char WHITE = 'W';
 
@@ -46,14 +46,18 @@ int main()
 		
 		char in;
 		cout << "[1] to begin a game." << endl;
-		cout << "[2] to view a prpgram description." << endl;
+		cout << "[2] to view a program description." << endl;
 		cout << "[0] to quit the program. " << endl;
 		cout << endl << "> ";
 		cin >> in;
-		if ((in == '1') || (in == '2'))
+		if (in == '1')
 		{
 			cout << "\033[2J\033[1;1H";		// clears the screen
 			play();							// begins the game
+		}
+		else if (in == '2')
+		{
+			info();
 		}
 		else if (in == '0')
 		{
@@ -63,6 +67,34 @@ int main()
 
 	cout << endl;
 	return 0;
+}
+
+void info()
+{
+	cout << "\033[2J\033[1;1H";		// clears the screen
+	cout << "-+-------------------------------------------------------------------+-" << endl;
+	cout << R"(    ___       ___       ___       ___       ___       ___       ___   
+   /\  \     /\  \     /\__\     /\  \     /\__\     /\__\     /\  \  
+  /::\  \    \:\  \   /:/__/_   /::\  \   /:/  /    /:/  /    /::\  \ 
+ /:/\:\__\   /::\__\ /::\/\__\ /::\:\__\ /:/__/    /:/__/    /:/\:\__\
+ \:\/:/  /  /:/\/__/ \/\::/  / \:\:\/  / \:\  \    \:\  \    \:\/:/  /
+  \::/  /   \/__/      /:/  /   \:\/  /   \:\__\    \:\__\    \::/  / 
+   \/__/               \/__/     \/__/     \/__/     \/__/     \/__/  )" << endl;
+	cout << endl << "-+-------------------------------------------------------------------+-" << endl << endl;
+
+	cout << R"(Implementation of the classic 2-player board game Othello!
+Here are the basic game rules:
+  1. Each player takes turn place a disc of their color on the board.
+  2. They must be placed in a way that causes your opponents pieces to flip.
+  3. This means playing a piece that encloses enemy pieces between two of yours.
+  4. Game ends when neither player has any available moves.
+  5. Player with the most amount of their color wins!
+
+Future implantation will add a functional Othello AI that can be played against.)" << endl;
+		cout << "[Enter] to continue.";
+		cin.ignore(numeric_limits<streamsize>::max(), '\n');
+		cin.get();
+
 }
 
 void play()
@@ -82,15 +114,21 @@ void play()
 			int whitePoints = getPoints(WHITE);
 			if (blackPoints == whitePoints)		// check if there is a tie
 			{
-				cout << "Game ends in a tie!!";
+				cout << "Game ends in a tie!!" << endl << endl;
 				playing = false;
+				cout << "[Enter] to continue.";
+				cin.ignore(numeric_limits<streamsize>::max(), '\n');
+				cin.get();
 				break;
 			}
 			else
 			{
 				string winner = (blackPoints > whitePoints) ? "Black" : "White";
-				cout << winner << " has won the game!!";
+				cout << winner << " has won the game!!" << endl << endl;
 				playing = false;
+				cout << "[Enter] to continue.";
+				cin.ignore(numeric_limits<streamsize>::max(), '\n');
+				cin.get();
 				break;
 			}
 		}
@@ -106,8 +144,9 @@ void play()
 		// handle i/o
 		cout << "Enter a command : " << endl;
 		cout << "To play a piece enter the format: D3" << endl;
-		cout << "[H] - Return your possible moves." << endl;
-		cout << "[Q] - Quit to the main menu." << endl;
+		cout << "[1] - Return your possible moves." << endl;
+		//cout << "[2] - AI helper" << endl;
+		cout << "[0] - Quit to the main menu." << endl;
 		cout << "> ";
 		cin >> input;
 		cout << endl;
@@ -116,12 +155,12 @@ void play()
 		transform(input.begin(), input.end(), input.begin(),::toupper);
 
 		// check what the input was
-		if (input == "Q")					// quit the game
+		if ((input == "0") || (input == "Q"))		// quit the game
 		{
 			playing = false;
 			break;
 		}
-		else if (input == "H")		// prints board state with added available moves
+		else if ((input == "1") || (input == "H"))	// prints board state with added available moves
 		{
 			printBoardState(0);
 		}
