@@ -1,6 +1,9 @@
 #include <iostream>
 #include <vector>
 #include <cctype>
+#include <random>
+#include <chrono>
+#include <thread>
 using namespace std;
 
 //// function prototypes
@@ -33,7 +36,7 @@ const char WHITE = 'W';
 
 char curPlayer = BLACK;
 
-const int SEARCH_DEPTH = 4;
+const int SEARCH_DEPTH = 6;
 
 int main()
 {
@@ -192,6 +195,122 @@ void play()
 			else
 			{
 				printBoardState(1);		// prints out an illegal move message
+			}
+		}
+	}
+}
+
+void playAI()
+{
+	// randomly select the AI to play as either black or white
+	mt19937 seed(std::chrono::high_resolution_clock::now().time_since_epoch().count());	// this is just creating the seed based on the current time
+	uniform_int_distribution<int> flip(0, 1);											// this defines the range of the random distribution
+
+	char AI = (flip(seed) == 0) ? WHITE : BLACK;
+
+	cout << "You will be playing as " << ((AI == BLACK) ? "WHITE" : "BLACK") << endl;
+	cout << "[Enter] to continue.";
+	cin.ignore(numeric_limits<streamsize>::max(), '\n');
+	cin.get();
+
+	string input;
+	bool playing = true;
+
+	initializeBoard();	// starting board state
+	printBoardState(-1);
+
+	while(playing)
+	{
+		// check if in a win state
+		if (checkWin(BOARD))	// if in a win state
+		{
+			int blackPoints = getPoints(BLACK, BOARD);
+			int whitePoints = getPoints(WHITE, BOARD);
+			if (blackPoints == whitePoints)		// check if there is a tie
+			{
+				cout << "Game ends in a tie!!" << endl << endl;
+				playing = false;
+				cout << "[Enter] to continue.";
+				cin.ignore(numeric_limits<streamsize>::max(), '\n');
+				cin.get();
+				break;
+			}
+			else
+			{
+				string winner = (blackPoints > whitePoints) ? "Black" : "White";
+				cout << winner << " has won the game!!" << endl << endl;
+				playing = false;
+				cout << "[Enter] to continue.";
+				cin.ignore(numeric_limits<streamsize>::max(), '\n');
+				cin.get();
+				break;
+			}
+		}
+
+		// check if there is a legal move
+		vector<string> moves = getLegalMoves(curPlayer, BOARD);
+		if (moves.size() == 0)	// if the current player cannot move skip them
+		{
+			printBoardState(2);
+			curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
+		}
+		
+		// if it is the AI's turn
+		if (curPlayer == AI)
+		{
+			cout << "The AI is thinking. . ." << endl;
+
+			// find its best move
+			string bestMove = find_best_move(curPlayer, SEARCH_DEPTH);
+
+			// execute the move
+			doMove(curPlayer, parseInput(bestMove), BOARD);
+
+			// update player turn
+			this_thread::sleep_for(chrono::seconds(2));
+			curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
+			printBoardState(-1);
+		}
+		else // if its the player's turn
+		{
+			// handle i/o
+			cout << "Enter a command : " << endl;
+			cout << "To play a piece enter the format: D3" << endl;
+			cout << "[1] - Return your possible moves." << endl;
+			cout << "[2] - Ask an AI for your best move." << endl;
+			cout << "[0] - Quit to the main menu." << endl;
+			cout << "> ";
+			cin >> input;
+			cout << endl;
+
+			// converts the input to uppercase 
+			transform(input.begin(), input.end(), input.begin(),::toupper);
+
+			// check what the input was
+			if ((input == "0") || (input == "Q"))		// quit the game
+			{
+				playing = false;
+				break;
+			}
+			else if (input == "1")	// prints board state with added available moves
+			{
+				printBoardState(0);
+			}
+			else if ((input == "2") || (input == "H"))	// uses the MiniMax algorithm to find the best move
+			{
+				printBoardState(3);
+			}
+			else // assume it was a move input
+			{
+				if (doMove(curPlayer, parseInput(input), BOARD))
+				{
+					curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
+					printBoardState(-2);	// special "AI is thinking" screen so the game feels more interactive
+				}
+				else
+				{
+					printBoardState(1);		// prints out an illegal move message
+				}
 			}
 		}
 	}
