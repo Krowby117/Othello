@@ -3,28 +3,37 @@
 #include <cctype>
 using namespace std;
 
-// function prototypes
+//// function prototypes
 void initializeBoard();
 void printBoardState(int message);
-bool doMove(char turn, array<int, 2> move);
-vector<string> getLegalMoves(char turn);
-bool moveIsLegal(char turn, int row, int col);
+bool doMove(char turn, array<int, 2> move, char board[8][8]);
+vector<string> getLegalMoves(char turn, char board[8][8]);
+bool moveIsLegal(char turn, int row, int col, char board[8][8]);
 array<int, 2> parseInput(string move);
 string parseOutput(int r, int c);
-bool checkWin();
-int getPoints(char turn);
+bool checkWin(char board[8][8]);
+int getPoints(char turn, char board[8][8]);
 void info();
 void play();
+void playAI();
+void copyBoard(char dest[8][8], char src[8][8]);
 
-// global variables
+//// for the mini-max algorithm
+string find_best_move(char turn, int searchDepth);
+int minimax(char turn, char board[8][8], int searchDepth, bool maximizing);
+int hearustic(char turn, char board[8][8]);
+
+//// global variables
 const int SIZE = 8;
-char board[SIZE][SIZE];
+char BOARD[SIZE][SIZE];
 
 const char EMPTY = '.';
 const char BLACK = 'B';
 const char WHITE = 'W';
 
 char curPlayer = BLACK;
+
+const int SEARCH_DEPTH = 4;
 
 int main()
 {
@@ -45,8 +54,9 @@ int main()
 		cout << "Programmed by: Gavin Dominique" << endl << endl;
 		
 		char in;
-		cout << "[1] to begin a game." << endl;
-		cout << "[2] to view a program description." << endl;
+		cout << "[1] to begin a 2-player game." << endl;
+		cout << "[2] to play against the AI." << endl;
+		cout << "[3] to view a program description." << endl;
 		cout << "[0] to quit the program. " << endl;
 		cout << endl << "> ";
 		cin >> in;
@@ -56,6 +66,10 @@ int main()
 			play();							// begins the game
 		}
 		else if (in == '2')
+		{
+			playAI();
+		}
+		else if (in == '3')
 		{
 			info();
 		}
@@ -108,10 +122,10 @@ void play()
 	while(playing)
 	{
 		// check if in a win state
-		if (checkWin())	// if in a win state
+		if (checkWin(BOARD))	// if in a win state
 		{
-			int blackPoints = getPoints(BLACK);
-			int whitePoints = getPoints(WHITE);
+			int blackPoints = getPoints(BLACK, BOARD);
+			int whitePoints = getPoints(WHITE, BOARD);
 			if (blackPoints == whitePoints)		// check if there is a tie
 			{
 				cout << "Game ends in a tie!!" << endl << endl;
@@ -134,7 +148,7 @@ void play()
 		}
 
 		// check if there is a legal move
-		vector<string> moves = getLegalMoves(curPlayer);
+		vector<string> moves = getLegalMoves(curPlayer, BOARD);
 		if (moves.size() == 0)
 		{
 			printBoardState(2);
@@ -145,7 +159,7 @@ void play()
 		cout << "Enter a command : " << endl;
 		cout << "To play a piece enter the format: D3" << endl;
 		cout << "[1] - Return your possible moves." << endl;
-		//cout << "[2] - AI helper" << endl;
+		cout << "[2] - Ask an AI for your best move." << endl;
 		cout << "[0] - Quit to the main menu." << endl;
 		cout << "> ";
 		cin >> input;
@@ -160,13 +174,17 @@ void play()
 			playing = false;
 			break;
 		}
-		else if ((input == "1") || (input == "H"))	// prints board state with added available moves
+		else if (input == "1")	// prints board state with added available moves
 		{
 			printBoardState(0);
 		}
+		else if ((input == "2") || (input == "H"))	// uses the MiniMax algorithm to find the best move
+		{
+			printBoardState(3);
+		}
 		else // assume it was a move input
 		{
-			if (doMove(curPlayer, parseInput(input)))
+			if (doMove(curPlayer, parseInput(input), BOARD))
 			{
 				curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
 				printBoardState(-1);	// no special messages
@@ -179,7 +197,7 @@ void play()
 	}
 }
 
-int getPoints(char turn)
+int getPoints(char turn, char board[8][8])
 {
 	int points = 0;
 
@@ -197,10 +215,10 @@ int getPoints(char turn)
 	return points;
 }
 
-bool checkWin()
+bool checkWin(char board[8][8])
 {
-	vector<string> blackMoves = getLegalMoves(BLACK);
-	vector<string> whiteMoves = getLegalMoves(WHITE);
+	vector<string> blackMoves = getLegalMoves(BLACK, board);
+	vector<string> whiteMoves = getLegalMoves(WHITE, board);
 
 	if ((blackMoves.size() == 0) && (whiteMoves.size() == 0))	// if neither piece has available moves
 	{
@@ -218,21 +236,21 @@ void initializeBoard()
 		{
 			if ((i == 3 && j == 3) || (i == 4 && j == 4))		// sets the initial white pieces
 			{
-				board[i][j] = WHITE;
+				BOARD[i][j] = WHITE;
 			}
 			else if ((i == 3 && j == 4) || (i == 4 && j == 3))	// sets the initial black pieces
 			{
-				board[i][j] = BLACK;
+				BOARD[i][j] = BLACK;
 			}
-			else {board[i][j] = EMPTY;}				// sets initial blank spots
+			else {BOARD[i][j] = EMPTY;}				// sets initial blank spots
 		}
 	}
 }
 
 void printBoardState(int message)
 {
-	int pointsB = getPoints(BLACK);
-	int pointsW = getPoints(WHITE);
+	int pointsB = getPoints(BLACK, BOARD);
+	int pointsW = getPoints(WHITE, BOARD);
 
 	cout << "\033[2J\033[1;1H";		// clears the screen
 	cout << "Current player : " << ((curPlayer == BLACK) ? "Black" : "White")
@@ -246,7 +264,7 @@ void printBoardState(int message)
 		cout << (i + 1) << " | ";
 		for (int j = 0; j < SIZE; j++)
 		{
-			cout << board[i][j] << " ";
+			cout << BOARD[i][j] << " ";
 		}
 		cout << "|" << endl;
 	}
@@ -258,7 +276,7 @@ void printBoardState(int message)
 	if (message == 0)	// 0 is the move help
 	{
 		cout << "--- Possible Moves ---" << endl;
-		vector<string> possible = getLegalMoves(curPlayer);
+		vector<string> possible = getLegalMoves(curPlayer, BOARD);
 		for (int i = 0; i < possible.size(); i++)
 		{
 			cout << possible[i] << " ";
@@ -272,6 +290,11 @@ void printBoardState(int message)
 	{
 		cout << "No valid moves, turn was skipped.";
 	}
+	else if (message == 3)	// 3 is the find best move option
+	{
+		string bestMove = find_best_move(curPlayer, SEARCH_DEPTH);
+		cout << "--- Best move is " + bestMove + " ---";
+	}
 	else
 	{
 		cout << "----------------------";
@@ -279,7 +302,7 @@ void printBoardState(int message)
 	cout << endl << endl;
 }
 
-vector<string> getLegalMoves(char turn)
+vector<string> getLegalMoves(char turn, char board[8][8])
 {
 	vector<string> moves = {};
 
@@ -287,8 +310,7 @@ vector<string> getLegalMoves(char turn)
 	{
 		for (int j = 0; j < SIZE; j++)
 		{
-			// for each cell on the board
-			if (moveIsLegal(turn, i, j))
+			if (moveIsLegal(turn, i, j, board))
 			{
 				moves.push_back(parseOutput(i, j));
 			}
@@ -312,7 +334,7 @@ string parseOutput(int r, int c)
 	return cols[c] + to_string(r+1);
 }
 
-bool moveIsLegal(char turn, int row, int col)
+bool moveIsLegal(char turn, int row, int col, char board[8][8])
 {
 	// if row or column out of bounds or the cell is occupied
 	if ((row < 0 || row >= SIZE) || (col < 0 || col >= SIZE) || (board[row][col] != EMPTY))
@@ -363,7 +385,7 @@ bool moveIsLegal(char turn, int row, int col)
 
 // function that takes in the current player and the move's row and column
 // it then attempts to do the move and flip enemy pieces if needed
-bool doMove(char turn, array<int, 2> move)
+bool doMove(char turn, array<int, 2> move, char board[8][8])
 {
 	int row = move[0];
 	int col = move[1];
@@ -426,4 +448,103 @@ bool doMove(char turn, array<int, 2> move)
 	}
 
 	return valid;
+}
+
+//////// mini max algorithm functions
+// gets a copy of the current board
+void copyBoard(char dest[8][8], char src[8][8])
+{
+	for (int i = 0; i < SIZE; i++)
+	{
+		for (int j = 0; j < SIZE; j++)
+		{
+			dest[i][j] = src[i][j];
+		}
+	}
+}
+
+// uses the mini_max algorithm to find the current players best move
+string find_best_move(char turn, int searchDepth)
+{
+	vector<string> possibleMoves = getLegalMoves(turn, BOARD);
+	int scores[possibleMoves.size()];
+
+	for (int i = 0; i < possibleMoves.size(); i++)
+	{
+		char curState[8][8]; copyBoard(curState, BOARD);				// grab a copy of the current board state
+		array<int, 2> move = parseInput(possibleMoves[i]);				// grab the current move
+
+		doMove(turn, move, curState);									// do the move
+		int score = minimax(turn, curState, searchDepth - 1, true);		// run the search algorithm
+		scores[i] = score;												// add it to the list of calculated scores
+	}
+
+	int best = 0;
+	int besti = 0;
+
+	for (int i = 0; i < possibleMoves.size(); i++)
+	{
+		if (scores[i] > best)
+		{
+			best = scores[i];
+			besti = i;
+		}
+	}
+
+	return possibleMoves[besti];
+}
+
+// the player currently searching, the board state, the search depth, and if its a maximizing step
+int minimax(char turn, char board[8][8], int depth, bool maximizing)
+{
+	// variables used in the function
+	int eval;
+	int maxEval;
+	int minEval;
+	vector<string> possibleMoves = getLegalMoves(turn, board);
+
+	// if at the end of our search or the current board is in a win state
+	if (depth == 0 || checkWin(board) || possibleMoves.empty())
+	{
+		return hearustic(turn, board);
+	}
+
+	// if this is a maximizing step
+	if (maximizing)
+	{
+		maxEval = -INFINITY;
+
+		for (string input : possibleMoves)
+		{
+			array<int, 2> move = parseInput(input);
+			char curState[8][8]; copyBoard(curState, board);
+			doMove(turn, move, curState);
+			eval = minimax(((turn == BLACK) ? WHITE : BLACK), curState, depth - 1, false);
+			maxEval = max(maxEval, eval);
+		}
+
+		return maxEval;
+	}
+
+	else
+	{
+		minEval = INFINITY;
+
+		for (string input : possibleMoves)
+		{
+			array<int, 2> move = parseInput(input);
+			char curState[8][8]; copyBoard(curState, board);
+			doMove(turn, move, curState);
+			eval = minimax(((turn == BLACK) ? WHITE : BLACK), curState, depth - 1, true);
+			minEval = min(minEval, eval);
+		}
+
+		return minEval;
+	}
+}
+
+int hearustic(char turn, char board[8][8])
+{
+	// heaustic = your points - opponents points
+	return getPoints(turn, board) - getPoints(((turn == BLACK) ? WHITE : BLACK), board);
 }
