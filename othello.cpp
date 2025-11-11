@@ -2,9 +2,10 @@
 #include <vector>
 #include <cctype>
 #include <random>
+#include <fstream>
 using namespace std;
 
-//// function prototypes
+//// function prototypes for the Othello implimentation
 void initializeBoard();
 void printBoardState(int message);
 bool doMove(char turn, array<int, 2> move, char board[8][8]);
@@ -17,14 +18,18 @@ int getPoints(char turn, char board[8][8]);
 void info();
 void play();
 void playAI();
-void copyBoard(char dest[8][8], char src[8][8]);
 
-//// for the mini-max algorithm
+//// function prototypes for the mini-max algorithm
 string find_best_move(char turn, int searchDepth);
 int minimax(char root, char curTurn, char boardState[8][8], int searchDepth, bool debug, vector<string> checkedMoves);
 int minimax_prune(char root, char curTurn, char boardState[8][8], int searchDepth, int alpha, int beta, bool debug, vector<string> checkedMoves);
 int heuristic(char turn, char board[8][8]);
 void printVector(vector<string> vec);
+
+//// function prototypes for random helper functions
+void copyBoard(char dest[8][8], char src[8][8]);
+array<array<char, 8>, 8> formatBoard(char board[8][8]);
+void saveGameTrace(const vector<array<array<char, 8>, 8>>& trace, char ai, string gameOutcome);
 
 //// global variables
 const int SIZE = 8;
@@ -48,6 +53,7 @@ const char WHITE = 'W';
 char curPlayer = BLACK;
 
 const int SEARCH_DEPTH = 6;
+int statesViewed = 0;
 
 int main()
 {
@@ -127,10 +133,15 @@ Future implantation will add a functional Othello AI that can be played against.
 
 void play()
 {
+	vector<array<array<char, 8>, 8>> gameTrace;
+
+	curPlayer = BLACK;
+
 	string input;
 	bool playing = true;
 
 	initializeBoard();	// starting board state
+	gameTrace.push_back(formatBoard(BOARD));
 	printBoardState(-1);
 
 	while(playing)
@@ -144,7 +155,8 @@ void play()
 			{
 				cout << "Game ends in a tie!!" << endl << endl;
 				playing = false;
-				cout << "[Enter] to continue.";
+				saveGameTrace(gameTrace, EMPTY, "TIE GAME");
+				cout << "[Enter] to return to the main menu.";
 				cin.ignore(numeric_limits<streamsize>::max(), '\n');
 				cin.get();
 				break;
@@ -154,7 +166,8 @@ void play()
 				string winner = (blackPoints > whitePoints) ? "Black" : "White";
 				cout << winner << " has won the game!!" << endl << endl;
 				playing = false;
-				cout << "[Enter] to continue.";
+				saveGameTrace(gameTrace, EMPTY, (winner + " WON"));
+				cout << "[Enter] to return to the main menu.";
 				cin.ignore(numeric_limits<streamsize>::max(), '\n');
 				cin.get();
 				break;
@@ -200,6 +213,7 @@ void play()
 		{
 			if (doMove(curPlayer, parseInput(input), BOARD))
 			{
+				gameTrace.push_back(formatBoard(BOARD));
 				curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
 				printBoardState(-1);	// no special messages
 			}
@@ -213,6 +227,9 @@ void play()
 
 void playAI()
 {
+	vector<array<array<char, 8>, 8>> gameTrace;
+	curPlayer = BLACK;
+
 	// randomly select the AI to play as either black or white
 	mt19937 seed(random_device{}());								// this just creates the random device
 	uniform_int_distribution<int> flip(0, 1);						// this defines the range of the random distribution
@@ -228,6 +245,7 @@ void playAI()
 	bool playing = true;
 
 	initializeBoard();	// starting board state
+	gameTrace.push_back(formatBoard(BOARD));
 	printBoardState(-1);
 
 	while(playing)
@@ -241,7 +259,8 @@ void playAI()
 			{
 				cout << "Game ends in a tie!!" << endl << endl;
 				playing = false;
-				cout << "[Enter] to continue.";
+				saveGameTrace(gameTrace, AI, "TIE GAME");
+				cout << "[Enter] to return to the main menu.";
 				cin.ignore(numeric_limits<streamsize>::max(), '\n');
 				cin.get();
 				break;
@@ -251,7 +270,8 @@ void playAI()
 				string winner = (blackPoints > whitePoints) ? "Black" : "White";
 				cout << winner << " has won the game!!" << endl << endl;
 				playing = false;
-				cout << "[Enter] to continue.";
+				saveGameTrace(gameTrace, AI, (winner + " WON"));
+				cout << "[Enter] to return to the main menu.";
 				cin.ignore(numeric_limits<streamsize>::max(), '\n');
 				cin.get();
 				break;
@@ -276,6 +296,7 @@ void playAI()
 
 			// execute the move
 			doMove(curPlayer, parseInput(bestMove), BOARD);
+			gameTrace.push_back(formatBoard(BOARD));
 
 			// update player turn
 			curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
@@ -314,6 +335,7 @@ void playAI()
 			{
 				if (doMove(curPlayer, parseInput(input), BOARD))
 				{
+					gameTrace.push_back(formatBoard(BOARD));
 					curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
 					printBoardState(-2);	// special "AI is thinking" screen so the game feels more interactive
 				}
@@ -326,6 +348,7 @@ void playAI()
 	}
 }
 
+// returns the amount of points a player has based on a board state
 int getPoints(char turn, char board[8][8])
 {
 	int points = 0;
@@ -344,6 +367,7 @@ int getPoints(char turn, char board[8][8])
 	return points;
 }
 
+// checks the current board state for a win condition
 bool checkWin(char board[8][8])
 {
 	vector<string> blackMoves = getLegalMoves(BLACK, board);
@@ -357,6 +381,7 @@ bool checkWin(char board[8][8])
 	return false;
 }
 
+// sets the initial values for the starting game board (just the 4 pieces in the middle)
 void initializeBoard()
 {
 	for (int i = 0; i < SIZE; i++)
@@ -376,6 +401,9 @@ void initializeBoard()
 	}
 }
 
+// main print for the game loop
+// prints the current turn and player standings
+// prints a special message based on the int value given
 void printBoardState(int message)
 {
 	int pointsB = getPoints(BLACK, BOARD);
@@ -431,6 +459,7 @@ void printBoardState(int message)
 	cout << endl << endl;
 }
 
+// returns a vector containing all of the players legal moves based on a board state
 vector<string> getLegalMoves(char turn, char board[8][8])
 {
 	vector<string> moves = {};
@@ -449,6 +478,8 @@ vector<string> getLegalMoves(char turn, char board[8][8])
 	return moves;
 }
 
+// parses an string in put into an array giving the moves row and col
+// example : C3 becomes array(2, 2)
 array<int, 2> parseInput(string move)
 {
 	move[0] = toupper(move[0]); // normalize letter
@@ -457,12 +488,15 @@ array<int, 2> parseInput(string move)
     return {row, col};
 }
 
+// parses a row and column input into the string move
+// example : move(2, 2) becomes C3
 string parseOutput(int r, int c)
 {
 	string cols[8] = {"A", "B", "C", "D", "E", "F", "G", "H"};
 	return cols[c] + to_string(r+1);
 }
 
+// checks if a given move is legal for a player given a board state
 bool moveIsLegal(char turn, int row, int col, char board[8][8])
 {
 	// if row or column out of bounds or the cell is occupied
@@ -579,6 +613,70 @@ bool doMove(char turn, array<int, 2> move, char board[8][8])
 	return valid;
 }
 
+// function that returns a char[8][8] into an array<array<char, 8>, 8> so it can be saved into the game trace
+array<array<char, 8>, 8> formatBoard(char board[8][8]) 
+{
+    array<array<char, 8>, 8> array;
+    for (int i = 0; i < 8; ++i)
+	{
+        for (int j = 0; j < 8; ++j)
+		{
+            array[i][j] = board[i][j];
+		}
+	}
+
+    return array;
+}
+
+// helper function that asks the user if they would like to save the game trace to a file
+void saveGameTrace(const vector<array<array<char, 8>, 8>>& trace, char ai, string gameOutcome) 
+{
+	string input = "";
+	cout << endl << "Do you want to save the game trace? [y/n]" << endl;
+	cout <<  "(will overrite current game_trace.txt)" << endl;
+	cout << "> ";
+	cin >> input;
+	cout << endl;
+
+	transform(input.begin(), input.end(), input.begin(),::toupper);
+	if (input == "Y") 
+	{
+		// creates output and checks if it was succesful
+		ofstream output("game_trace.txt");
+		if (!output) 
+		{
+			cerr << "Error: Could not open file for writing.\n";
+			return;
+		}
+
+		// checks if the game was played against an ai and updates the trace accordingly
+		if (ai != EMPTY)
+		{
+			output << "AI played as " << ai << endl;
+		}
+
+		output << "GAME OUTCOME -> " << gameOutcome << endl;
+
+		for (size_t t = 0; t < trace.size(); ++t) {
+			output << "Turn " << t + 1 << ":" << endl;
+			output << "  | A B C D E F G H |" << endl;
+			output << "--+-----------------+-" << endl;
+			for (int i = 0; i < 8; ++i) {
+				output << (i + 1) << " | ";
+				for (int j = 0; j < 8; ++j)
+					output << trace[t][i][j] << ' ';
+				output << "|" << endl;
+			}
+			output << "--+-----------------+-" << endl << endl;
+		}
+
+		output.close();
+		cout << "Game trace saved to 'game_trace.txt'." << endl << endl;
+	}
+	else { cout << "Game trace not saved." << endl << endl; }
+}
+
+
 //////// mini max algorithm functions
 // gets a copy of the current board
 void copyBoard(char dest[8][8], char src[8][8])
@@ -613,7 +711,7 @@ string find_best_move(char turn, int searchDepth)
 	cout << endl;
 
 	transform(input.begin(), input.end(), input.begin(),::toupper);
-	if (input == "Y") { prune = true; cout << "PRUNING" << endl;}
+	if (input == "Y") { prune = true;}
 
 	vector<string> possibleMoves = getLegalMoves(turn, BOARD);
 	vector<int> scores(possibleMoves.size());
@@ -642,11 +740,15 @@ string find_best_move(char turn, int searchDepth)
 	vector<int> bestFound;
 	int best = -1000000;
 
-	for (int i = 0; i < scores.size(); i++) {
-		if (scores[i] > best) {
+	for (int i = 0; i < scores.size(); i++) 
+	{
+		if (scores[i] > best) 
+		{
 			best = scores[i];
 			bestFound = {i};
-		} else if (scores[i] == best) {
+		} 
+		else if (scores[i] == best) 
+		{
 			bestFound.push_back(i);
 		}
 	}
@@ -655,7 +757,6 @@ string find_best_move(char turn, int searchDepth)
 	mt19937 rng(std::random_device{}());
 	uniform_int_distribution<int> dist(0, bestFound.size() - 1);
 	return possibleMoves[bestFound[dist(rng)]];
-
 }
 
 // the player currently searching, the board state, the search depth, and if its a maximizing step
@@ -727,6 +828,7 @@ int minimax(char root, char curTurn, char boardState[8][8], int searchDepth, boo
 	}
 }
 
+// version of the minimax algorithm that implements alpha beta pruning. added this just so the code LOOKED cleaner
 int minimax_prune(char root, char curTurn, char boardState[8][8], int searchDepth, int alpha, int beta, bool debug, vector<string> checkedMoves)
 {
 	vector<string> possibleMoves = getLegalMoves(curTurn, boardState);
@@ -777,7 +879,11 @@ int minimax_prune(char root, char curTurn, char boardState[8][8], int searchDept
 			eval = minimax_prune(root, ((curTurn == BLACK) ? WHITE : BLACK), newState, searchDepth - 1, alpha, beta, debug, checkedMoves);	// conitnues to search deeper
 			maxEval = max(maxEval, eval);																						// choose the best option
 			alpha = max(alpha, eval);
-            if (beta <= alpha) {cout << " pruned " << endl; break; }																	// prune that shit baby
+            if (beta <= alpha) 								// prune that shit baby
+			{
+				if (debug) { cout << " pruned " << endl; }
+				break; 
+			}
 		}
 		return maxEval;
 	}
@@ -793,7 +899,11 @@ int minimax_prune(char root, char curTurn, char boardState[8][8], int searchDept
 			eval = minimax_prune(root, ((curTurn == BLACK) ? WHITE : BLACK), newState, searchDepth - 1, alpha, beta, debug, checkedMoves);	// conitnues to search deeper
 			minEval = min(minEval, eval);																						// choose the best option
 			beta = min(beta, eval);
-            if (beta <= alpha) {cout << " pruned "; break; }	 																// prune that shit baby
+            if (beta <= alpha) 								// prune that shit baby
+			{
+				if (debug) { cout << " pruned " << endl; }
+				break; 
+			}
 		}
 		return minEval;
 	}
