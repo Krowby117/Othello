@@ -2,6 +2,8 @@
 #include <vector>
 #include <cctype>
 #include <random>
+#include <chrono>
+#include <thread>
 using namespace std;
 
 //// function prototypes
@@ -16,30 +18,14 @@ bool checkWin(char board[8][8]);
 int getPoints(char turn, char board[8][8]);
 void info();
 void play();
-void playAI();
 void copyBoard(char dest[8][8], char src[8][8]);
 
 //// for the mini-max algorithm
-string find_best_move(char turn, int searchDepth);
-int minimax(char root, char curTurn, char boardState[8][8], int searchDepth, bool debug, vector<string> checkedMoves);
-int minimax_prune(char root, char curTurn, char boardState[8][8], int searchDepth, int alpha, int beta, bool debug, vector<string> checkedMoves);
-int heuristic(char turn, char board[8][8]);
-void printVector(vector<string> vec);
+int hearustic(char turn, char board[8][8]);
 
 //// global variables
 const int SIZE = 8;
 char BOARD[SIZE][SIZE];
-
-const int boardWeights[8][8] = {
-    { 25, -5, 10, 2, 2, 10, -5, 25 },
-    { -5, -10, -2, -2, -2, -2, -10, -5 },
-    { 10, -2, 3, 1, 1, 3, -2, 10 },
-    { 2, -2, 1, 0, 0, 1, -2, 2 },
-    { 2, -2, 1, 0, 0, 1, -2, 2 },
-    { 10, -2, 3, 1, 1, 3, -2, 10 },
-    { -5, -10, -2, -2, -2, -2, -10, -5 },
-    { 25, -5, 10, 2, 2, 10, -5, 25 }
-};
 
 const char EMPTY = '.';
 const char BLACK = 'B';
@@ -69,8 +55,7 @@ int main()
 		
 		char in;
 		cout << "[1] to begin a 2-player game." << endl;
-		cout << "[2] to play against the AI." << endl;
-		cout << "[3] to view a program description." << endl;
+		cout << "[2] to view a program description." << endl;
 		cout << "[0] to quit the program. " << endl;
 		cout << endl << "> ";
 		cin >> in;
@@ -80,10 +65,6 @@ int main()
 			play();							// begins the game
 		}
 		else if (in == '2')
-		{
-			playAI();
-		}
-		else if (in == '3')
 		{
 			info();
 		}
@@ -206,121 +187,6 @@ void play()
 			else
 			{
 				printBoardState(1);		// prints out an illegal move message
-			}
-		}
-	}
-}
-
-void playAI()
-{
-	// randomly select the AI to play as either black or white
-	mt19937 seed(random_device{}());								// this just creates the random device
-	uniform_int_distribution<int> flip(0, 1);						// this defines the range of the random distribution
-
-	char AI = (flip(seed) == 0) ? WHITE : BLACK;
-
-	cout << "You will be playing as " << ((AI == BLACK) ? "WHITE" : "BLACK") << endl;
-	cout << "[Enter] to continue.";
-	cin.ignore(numeric_limits<streamsize>::max(), '\n');
-	cin.get();
-
-	string input;
-	bool playing = true;
-
-	initializeBoard();	// starting board state
-	printBoardState(-1);
-
-	while(playing)
-	{
-		// check if in a win state
-		if (checkWin(BOARD))	// if in a win state
-		{
-			int blackPoints = getPoints(BLACK, BOARD);
-			int whitePoints = getPoints(WHITE, BOARD);
-			if (blackPoints == whitePoints)		// check if there is a tie
-			{
-				cout << "Game ends in a tie!!" << endl << endl;
-				playing = false;
-				cout << "[Enter] to continue.";
-				cin.ignore(numeric_limits<streamsize>::max(), '\n');
-				cin.get();
-				break;
-			}
-			else
-			{
-				string winner = (blackPoints > whitePoints) ? "Black" : "White";
-				cout << winner << " has won the game!!" << endl << endl;
-				playing = false;
-				cout << "[Enter] to continue.";
-				cin.ignore(numeric_limits<streamsize>::max(), '\n');
-				cin.get();
-				break;
-			}
-		}
-
-		// check if there is a legal move
-		vector<string> moves = getLegalMoves(curPlayer, BOARD);
-		if (moves.size() == 0)	// if the current player cannot move skip them
-		{
-			printBoardState(2);
-			curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
-		}
-		
-		// if it is the AI's turn
-		if (curPlayer == AI)
-		{
-			cout << "The AI is thinking. . ." << endl;
-
-			// find its best move
-			string bestMove = find_best_move(curPlayer, SEARCH_DEPTH);
-
-			// execute the move
-			doMove(curPlayer, parseInput(bestMove), BOARD);
-
-			// update player turn
-			curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
-			printBoardState(-1);
-		}
-		else // if its the player's turn
-		{
-			// handle i/o
-			cout << "Enter a command : " << endl;
-			cout << "To play a piece enter the format: D3" << endl;
-			cout << "[1] - Return your possible moves." << endl;
-			cout << "[2] - Ask an AI for your best move." << endl;
-			cout << "[0] - Quit to the main menu." << endl;
-			cout << "> ";
-			cin >> input;
-			cout << endl;
-
-			// converts the input to uppercase 
-			transform(input.begin(), input.end(), input.begin(),::toupper);
-
-			// check what the input was
-			if ((input == "0") || (input == "Q"))		// quit the game
-			{
-				playing = false;
-				break;
-			}
-			else if (input == "1")	// prints board state with added available moves
-			{
-				printBoardState(0);
-			}
-			else if ((input == "2") || (input == "H"))	// uses the MiniMax algorithm to find the best move
-			{
-				printBoardState(3);
-			}
-			else // assume it was a move input
-			{
-				if (doMove(curPlayer, parseInput(input), BOARD))
-				{
-					curPlayer = (curPlayer == BLACK) ? WHITE : BLACK;	// sets the next player
-					printBoardState(-2);	// special "AI is thinking" screen so the game feels more interactive
-				}
-				else
-				{
-					printBoardState(1);		// prints out an illegal move message
-				}
 			}
 		}
 	}
@@ -592,241 +458,9 @@ void copyBoard(char dest[8][8], char src[8][8])
 	}
 }
 
-// uses the mini_max algorithm to find the current players best move
-string find_best_move(char turn, int searchDepth)
+int hearustic(char turn, char board[8][8])
 {
-	bool debug = false;
-	bool prune = false;
-	string input = "";
-	cout << endl << "Do you want to print debug? [y/n]" << endl;
-	cout << "> ";
-	cin >> input;
-	cout << endl;
-
-	transform(input.begin(), input.end(), input.begin(),::toupper);
-	if (input == "Y") { debug = true; }
-
-	input = "";
-	cout << endl << "Do you want to enable pruning? [y/n]" << endl;
-	cout << "> ";
-	cin >> input;
-	cout << endl;
-
-	transform(input.begin(), input.end(), input.begin(),::toupper);
-	if (input == "Y") { prune = true; cout << "PRUNING" << endl;}
-
-	vector<string> possibleMoves = getLegalMoves(turn, BOARD);
-	vector<int> scores(possibleMoves.size());
-
-	for (int i = 0; i < possibleMoves.size(); i++)
-	{
-		char curState[8][8]; copyBoard(curState, BOARD);				// grab a copy of the current board state
-		doMove(turn, parseInput(possibleMoves[i]), curState);			// do the move
-
-		vector<string> checkedMoves;
-		checkedMoves.push_back(possibleMoves[i]);
-
-		if (prune) { scores[i] = minimax_prune(turn, ((turn == BLACK) ? WHITE : BLACK), curState, searchDepth - 1, -1000000, 1000000, debug, checkedMoves); }
-		else { scores[i] = minimax(turn, ((turn == BLACK) ? WHITE : BLACK), curState, searchDepth-1, debug, checkedMoves);} 
-	}
-
-	if (debug)
-	{
-		// give the user a second to look at the debug output
-		cout << "[Enter] to continue.";
-		cin.ignore(numeric_limits<streamsize>::max(), '\n');
-		cin.get();
-	}
-
-	// re-write it to maybe keep track of and return the best available move instead of just the score?
-	vector<int> bestFound;
-	int best = -1000000;
-
-	for (int i = 0; i < scores.size(); i++) {
-		if (scores[i] > best) {
-			best = scores[i];
-			bestFound = {i};
-		} else if (scores[i] == best) {
-			bestFound.push_back(i);
-		}
-	}
-
-	// Randomly choose one of the best moves found
-	mt19937 rng(std::random_device{}());
-	uniform_int_distribution<int> dist(0, bestFound.size() - 1);
-	return possibleMoves[bestFound[dist(rng)]];
-
+	// heaustic = your points - opponents points
+	return getPoints(turn, board) - getPoints(((turn == BLACK) ? WHITE : BLACK), board);
 }
 
-// the player currently searching, the board state, the search depth, and if its a maximizing step
-int minimax(char root, char curTurn, char boardState[8][8], int searchDepth, bool debug, vector<string> checkedMoves)
-{
-	vector<string> possibleMoves = getLegalMoves(curTurn, boardState);
-
-	// if at the end of the search or if the current state is a win state
-	if (searchDepth == 0 || checkWin(boardState))
-	{
-		if (debug) 
-		{ 
-			// print out the moves viewed and its heurstic value
-			printVector(checkedMoves); 
-			cout << heuristic(root, boardState) << endl; 
-		}
-
-    	return heuristic(root, boardState);
-	}
-
-	// if there are no possible moves
-	if (possibleMoves.empty()) 
-	{
-		// if opponent also has no moves then the game is over
-		vector<string> oppMoves = getLegalMoves(((curTurn == BLACK) ? WHITE : BLACK), boardState);
-		if (oppMoves.empty())
-		{
-			if (debug) 
-			{ 
-				// print out the moves viewed and its heurstic value
-				printVector(checkedMoves); 
-				cout << heuristic(root, boardState) << endl; 
-			}
-
-			return heuristic(root, boardState);
-		}
-		// if just you have nothing then L pass your turn nerd
-		return minimax(root, ((curTurn == BLACK) ? WHITE : BLACK), boardState, searchDepth - 1, debug, checkedMoves);
-	}
-
-	int maxEval, eval, minEval;
-
-	if (root == curTurn)
-	{
-		maxEval = -1000000;
-		for (string move : possibleMoves)
-		{
-			char newState[8][8]; copyBoard(newState, boardState);											// copies the board state
-			doMove(curTurn, parseInput(move), newState);													// does the chosen move
-			checkedMoves.push_back(move);
-			eval = minimax(root, ((curTurn == BLACK) ? WHITE : BLACK), newState, searchDepth - 1, debug, checkedMoves);	// conitnues to search deeper
-			maxEval = max(maxEval, eval);																	// choose the best option
-		}
-		return maxEval;
-	}
-
-	else
-	{
-		minEval = 1000000;
-		for (string move : possibleMoves)
-		{
-			char newState[8][8]; copyBoard(newState, boardState);											// copies the board state
-			doMove(curTurn, parseInput(move), newState);													// does the chosen move
-			checkedMoves.push_back(move);
-			eval = minimax(root, ((curTurn == BLACK) ? WHITE : BLACK), newState, searchDepth - 1, debug, checkedMoves);	// conitnues to search deeper
-			minEval = min(minEval, eval);																	// choose the best option
-		}
-		return minEval;
-	}
-}
-
-int minimax_prune(char root, char curTurn, char boardState[8][8], int searchDepth, int alpha, int beta, bool debug, vector<string> checkedMoves)
-{
-	vector<string> possibleMoves = getLegalMoves(curTurn, boardState);
-
-	// if at the end of the search or if the current state is a win state
-	if (searchDepth == 0 || checkWin(boardState))
-	{
-		if (debug) 
-		{ 
-			// print out the moves viewed and its heurstic value
-			printVector(checkedMoves); 
-			cout << heuristic(root, boardState) << endl; 
-		}
-
-    	return heuristic(root, boardState);
-	}
-
-	// if there are no possible moves
-	if (possibleMoves.empty()) 
-	{
-		// if opponent also has no moves then the game is over
-		vector<string> oppMoves = getLegalMoves(((curTurn == BLACK) ? WHITE : BLACK), boardState);
-		if (oppMoves.empty())
-		{
-			if (debug) 
-			{ 
-				// print out the moves viewed and its heurstic value
-				printVector(checkedMoves); 
-				cout << heuristic(root, boardState) << endl; 
-			}
-
-			return heuristic(root, boardState);
-		}
-		// if just you have nothing then L pass your turn nerd
-		return minimax_prune(root, ((curTurn == BLACK) ? WHITE : BLACK), boardState, searchDepth - 1, alpha, beta, debug, checkedMoves);
-	}
-
-	int maxEval, eval, minEval;
-
-	if (root == curTurn)
-	{
-		maxEval = -1000000;
-		for (string move : possibleMoves)
-		{
-			char newState[8][8]; copyBoard(newState, boardState);																// copies the board state
-			doMove(curTurn, parseInput(move), newState);																		// does the chosen move
-			checkedMoves.push_back(move);
-			eval = minimax_prune(root, ((curTurn == BLACK) ? WHITE : BLACK), newState, searchDepth - 1, alpha, beta, debug, checkedMoves);	// conitnues to search deeper
-			maxEval = max(maxEval, eval);																						// choose the best option
-			alpha = max(alpha, eval);
-            if (beta <= alpha) {cout << " pruned " << endl; break; }																	// prune that shit baby
-		}
-		return maxEval;
-	}
-
-	else
-	{
-		minEval = 1000000;
-		for (string move : possibleMoves)
-		{
-			char newState[8][8]; copyBoard(newState, boardState);																// copies the board state
-			doMove(curTurn, parseInput(move), newState);																		// does the chosen move
-			checkedMoves.push_back(move);
-			eval = minimax_prune(root, ((curTurn == BLACK) ? WHITE : BLACK), newState, searchDepth - 1, alpha, beta, debug, checkedMoves);	// conitnues to search deeper
-			minEval = min(minEval, eval);																						// choose the best option
-			beta = min(beta, eval);
-            if (beta <= alpha) {cout << " pruned "; break; }	 																// prune that shit baby
-		}
-		return minEval;
-	}
-}
-
-int heuristic(char root, char board[8][8])
-{
-    int score = 0;
-	char enemy = (root == BLACK) ? WHITE : BLACK;
-
-	// scores each cell based on its location
-	for (int i = 0; i < 8; i++) 
-	{
-		for (int j = 0; j < 8; j++) 
-		{
-			if (board[i][j] == root)
-			{
-				score += boardWeights[i][j];
-			}
-			else if (board[i][j] == enemy)
-			{
-				score -= boardWeights[i][j];
-			}
-		}
-	}
-
-	return score;
-}
-
-void printVector(vector<string> vec)
-{
-	for (int i = 0; i < vec.size(); i++)
-	{
-		cout << vec[i] << " -> ";
-	}
-}
