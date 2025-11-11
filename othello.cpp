@@ -1,3 +1,14 @@
+///////////////////////////////////////////////////////////////////////////////////////////////
+///         NAME        :   Gavin Dominique
+///         DATE        :   October 12th, 2025
+///     Assignment      : Assignment 3: An Intelligent Othello Player
+/// PROGRAM DESCRIPTION : A C++ program that implements the 2-player board game Othello as a
+///							terminal and ascii based experience. It includes a an Othello AI
+///							implemented using the MiniMax algorithm with the option to 
+///							enable AlphaBeta for faster searches.
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+
 #include <iostream>
 #include <vector>
 #include <cctype>
@@ -15,7 +26,6 @@ array<int, 2> parseInput(string move);
 string parseOutput(int r, int c);
 bool checkWin(char board[8][8]);
 int getPoints(char turn, char board[8][8]);
-void info();
 void play();
 void playAI();
 
@@ -27,6 +37,7 @@ int heuristic(char turn, char board[8][8]);
 void printVector(vector<string> vec);
 
 //// function prototypes for random helper functions
+void info();
 void copyBoard(char dest[8][8], char src[8][8]);
 array<array<char, 8>, 8> formatBoard(char board[8][8]);
 void saveGameTrace(const vector<array<array<char, 8>, 8>>& trace, char ai, string gameOutcome);
@@ -55,6 +66,7 @@ char curPlayer = BLACK;
 const int SEARCH_DEPTH = 6;
 int statesViewed = 0;
 
+// main program loop
 int main()
 {
 	bool running = true;
@@ -103,6 +115,7 @@ int main()
 	return 0;
 }
 
+// program description screen function
 void info()
 {
 	cout << "\033[2J\033[1;1H";		// clears the screen
@@ -118,19 +131,21 @@ void info()
 
 	cout << R"(Implementation of the classic 2-player board game Othello!
 Here are the basic game rules:
-  1. Each player takes turn place a disc of their color on the board.
-  2. They must be placed in a way that causes your opponents pieces to flip.
-  3. This means playing a piece that encloses enemy pieces between two of yours.
-  4. Game ends when neither player has any available moves.
-  5. Player with the most amount of their color wins!
++ Each player takes turns placing a disc of their color on the board.
++ They must be placed in a way that causes your opponents pieces to flip.
++ This means playing a piece that encloses enemy pieces between two of yours.
++ Game ends when neither player has any available moves.
++ Player with the most amount of their color wins!
 
-Future implantation will add a functional Othello AI that can be played against.)" << endl;
+An Othello AI, using the MiniMax algorithm, is also available for in-game assistance 
+and to play against, for those seeking a challenge.)" << endl << endl;
 		cout << "[Enter] to continue.";
 		cin.ignore(numeric_limits<streamsize>::max(), '\n');
 		cin.get();
 
 }
 
+// game loop for two humans playing
 void play()
 {
 	vector<array<array<char, 8>, 8>> gameTrace;
@@ -225,6 +240,7 @@ void play()
 	}
 }
 
+// game loop for playing against the ai
 void playAI()
 {
 	vector<array<array<char, 8>, 8>> gameTrace;
@@ -676,9 +692,7 @@ void saveGameTrace(const vector<array<array<char, 8>, 8>>& trace, char ai, strin
 	else { cout << "Game trace not saved." << endl << endl; }
 }
 
-
-//////// mini max algorithm functions
-// gets a copy of the current board
+// sets dest array to be a copy of src array
 void copyBoard(char dest[8][8], char src[8][8])
 {
 	for (int i = 0; i < SIZE; i++)
@@ -716,6 +730,9 @@ string find_best_move(char turn, int searchDepth)
 	vector<string> possibleMoves = getLegalMoves(turn, BOARD);
 	vector<int> scores(possibleMoves.size());
 
+	// reset the number of states viewed
+	statesViewed = 0;
+
 	for (int i = 0; i < possibleMoves.size(); i++)
 	{
 		char curState[8][8]; copyBoard(curState, BOARD);				// grab a copy of the current board state
@@ -735,6 +752,8 @@ string find_best_move(char turn, int searchDepth)
 		cin.ignore(numeric_limits<streamsize>::max(), '\n');
 		cin.get();
 	}
+
+	cout << "States examined : " << statesViewed << endl;
 
 	// re-write it to maybe keep track of and return the best available move instead of just the score?
 	vector<int> bestFound;
@@ -762,6 +781,7 @@ string find_best_move(char turn, int searchDepth)
 // the player currently searching, the board state, the search depth, and if its a maximizing step
 int minimax(char root, char curTurn, char boardState[8][8], int searchDepth, bool debug, vector<string> checkedMoves)
 {
+	statesViewed++;
 	vector<string> possibleMoves = getLegalMoves(curTurn, boardState);
 
 	// if at the end of the search or if the current state is a win state
@@ -774,6 +794,10 @@ int minimax(char root, char curTurn, char boardState[8][8], int searchDepth, boo
 			cout << heuristic(root, boardState) << endl; 
 		}
 
+		// increase the number of states viewed by the size of moves checked
+		// this logic SHOULD make sense, each child hit stores the moves checked before it
+		// so the size of checked moves at the end of every node SHOULD properly update it
+		//statesViewed += checkedMoves.size(); // this method did NOT work lmao
     	return heuristic(root, boardState);
 	}
 
@@ -831,6 +855,7 @@ int minimax(char root, char curTurn, char boardState[8][8], int searchDepth, boo
 // version of the minimax algorithm that implements alpha beta pruning. added this just so the code LOOKED cleaner
 int minimax_prune(char root, char curTurn, char boardState[8][8], int searchDepth, int alpha, int beta, bool debug, vector<string> checkedMoves)
 {
+	statesViewed++;
 	vector<string> possibleMoves = getLegalMoves(curTurn, boardState);
 
 	// if at the end of the search or if the current state is a win state
@@ -909,6 +934,8 @@ int minimax_prune(char root, char curTurn, char boardState[8][8], int searchDept
 	}
 }
 
+// computes the heuristic for a given player and board state
+// uses a predefined weight table for scoring
 int heuristic(char root, char board[8][8])
 {
     int score = 0;
@@ -933,6 +960,7 @@ int heuristic(char root, char board[8][8])
 	return score;
 }
 
+// just a helper function for printing the debug for minimax
 void printVector(vector<string> vec)
 {
 	for (int i = 0; i < vec.size(); i++)
